@@ -16,6 +16,8 @@ HMODULE wmDll;
 HHOOK hookShellProcHandle;
 HANDLE windowEvent;
 
+BOOL disableTiling;
+
 //Has to absolutely match the definition in the dll 
 typedef LRESULT (*HotKeyProcType)(int, WPARAM, LPARAM);
 
@@ -44,7 +46,15 @@ void ctrlc(int sig) {
 	exit(ERROR_SUCCESS);
 }
 
-int main() {
+int main(int argc, char** argv) {
+	if(argc > 1)
+	{ 
+		if(strcmp(argv[argc - 1], "-notile") == 0)
+		{
+			disableTiling = TRUE;
+		}
+	}
+	
 	// Load Libraries and the needed functions from those libraries
 	wmDll = LoadLibraryW(L"lightwm_dll");
 	
@@ -97,7 +107,12 @@ int main() {
 	}
  
 	// Handle a message loop
-	tileWindows();
+	
+	if(!disableTiling)
+	{
+		tileWindows();
+	}
+	
 	MSG msg; 
 	while (GetMessage(&msg, NULL, 0, 0) != 0) {
 		if(msg.message == WM_HOTKEY) { 
@@ -119,7 +134,10 @@ int main() {
 
 		Sleep(100);
 
-		tileWindows();
+		if(!disableTiling)
+		{
+			tileWindows();
+		}
 	
 		TranslateMessage(&msg); 
 		DispatchMessageW(&msg); 
