@@ -1,4 +1,0 @@
-LIBRARY lightwm_dll
-EXPORTS
-ShellProc
-HotkeyProc

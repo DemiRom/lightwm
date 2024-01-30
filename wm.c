@@ -16,9 +16,6 @@ HMODULE wmDll;
 HHOOK hookShellProcHandle;
 HANDLE windowEvent;
 
-//Has to absolutely match the definition in the dll 
-typedef LRESULT (*HotKeyProcType)(int, WPARAM, LPARAM);
-
 void cleanupObjects() {
 	if (hookShellProcHandle) {
 		UnhookWindowsHookEx(hookShellProcHandle);
@@ -44,29 +41,59 @@ void ctrlc(int sig) {
 	exit(ERROR_SUCCESS);
 }
 
+LRESULT CALLBACK ShellProc(int code, WPARAM wparam, LPARAM lparam) {
+	if (code == HSHELL_WINDOWCREATED || code == HSHELL_WINDOWDESTROYED) {
+		const HANDLE windowEvent = OpenEventW(EVENT_ALL_ACCESS, FALSE, L"LightWMWindowEvent");
+		if (windowEvent) {
+			SetEvent(windowEvent);
+			CloseHandle(windowEvent);
+		}
+	}
+
+	return CallNextHookEx(NULL, code, wparam, lparam);
+}
+
+LRESULT HotKeyProc(int code, WPARAM wparam, LPARAM lparam) {
+	DEBUG_PRINT("HotkeyProc called - %i %i %i", code, wparam, lparam); 
+	
+	switch(wparam) 
+	{ 
+		//TODO Can either trigger an event like the ShellProc callback, or handle directly. 
+		// one method to handle virtual desktops is using the IVirtualDesktopManager in ShObjIdl but 
+		// that is only available for Window 10 1809 or later. 
+		case WORKSPACE_1:
+			puts("Switch to workspace 1");
+			break;
+		case WORKSPACE_2:
+			puts("Switch to workspace 2"); 
+			break;
+		case WORKSPACE_3:
+			puts("Switch to workspace 3"); 
+			break;
+		case WORKSPACE_4:
+			puts("Switch to workspace 4"); 
+			break;
+		case WINDOW_UP: 
+			puts("Highlight window above"); 
+			break; 
+		case WINDOW_DOWN: 
+			puts("Highlight window below"); 
+			break; 
+		case WINDOW_LEFT: 
+			puts("Highlight window left"); 
+			break; 
+		case WINDOW_RIGHT: 
+			puts("Highlight window right"); 
+			break; 
+		default: 
+			DEBUG_PRINT("Unhandled hotkey message! Hotkey ID: %i", wparam); 
+			break; 
+	}
+	
+	return CallNextHookEx(NULL, code, wparam, lparam);
+}
+
 int main() {
-	// Load Libraries and the needed functions from those libraries
-	wmDll = LoadLibraryW(L"lightwm_dll");
-	
-	if (wmDll == NULL) {
-		reportWin32Error(L"LoadLibrary of wm_dll"); 
-		return ERROR_MOD_NOT_FOUND;
-	}
-	
-	FARPROC shellProc = GetProcAddress(wmDll, "ShellProc");
-
-	if (shellProc == NULL) { 
-		reportWin32Error(L"GetProcAddress failed for shell even callback");
-		goto cleanup; 
-	}
-	
-	HotKeyProcType HotKeyProc = (HotKeyProcType)GetProcAddress(wmDll, "HotkeyProc");
-
-	if (HotKeyProc == NULL) { 
-		reportWin32Error(L"GetProcAddress failed for shell even callback");
-		goto cleanup; 
-	}
-	
 	windowEvent = CreateEventW(NULL, FALSE, FALSE, L"LightWMWindowEvent");
 
 	if (windowEvent == NULL) {
@@ -74,7 +101,7 @@ int main() {
 		goto cleanup;
 	}
 
-	hookShellProcHandle = SetWindowsHookExW(WH_SHELL, (HOOKPROC)shellProc, wmDll, 0);
+	hookShellProcHandle = SetWindowsHookExW(WH_SHELL, ShellProc, wmDll, GetCurrentThreadId(NULL));
 
 	if (hookShellProcHandle == NULL) {
 		reportWin32Error(L"SetWindowsHookExW failed for shell hook");
@@ -102,8 +129,6 @@ int main() {
 	while (GetMessage(&msg, NULL, 0, 0) != 0) {
 		if(msg.message == WM_HOTKEY) { 
 			//Because Win32 doesn't support hook callbacks with RegisterHotkey lets make our own callback. 
-			assert(HotKeyProc != NULL); 
-			
 			LRESULT ret = HotKeyProc(0, msg.wParam, msg.lParam);
 			if(ret != ERROR_SUCCESS) { 
 				DEBUG_PRINT("HotKey was unhandled! Ret: %i", ret); 

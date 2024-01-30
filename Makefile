@@ -4,24 +4,17 @@ RC     = rc
 CFLAGS = /EHsc
 
 EXE_SRCS = wm.c tiling.c error.c config.c keyboard.c
-DLL_SRCS = error.c wm_dll.c
 EXE_NAME = lightwm.exe
-DLL_NAME = lightwm_dll.dll
 EXE_RC = wm_resources.obj
-DLL_RC = 
 
 DBGDIR = debug
 DBGEXE = $(DBGDIR)/$(EXE_NAME)
 DBG_EXE_OBJS = $(addprefix $(DBGDIR)/, $(EXE_SRCS:.c=.obj))
-DBG_DLL_OBJS = $(addprefix $(DBGDIR)/, $(DLL_SRCS:.c=.obj))
-DBGDLL = $(DBGDIR)/$(DLL_NAME)
 DBGCFLAGS = $(CFLAGS) /DDEBUG /Zi
 
 RELDIR = release
 RELEXE = $(RELDIR)/$(EXE_NAME)
 REL_EXE_OBJS = $(addprefix $(RELDIR)/, $(EXE_SRCS:.c=.obj))
-REL_DLL_OBJS = $(addprefix $(RELDIR)/, $(DLL_SRCS:.c=.obj))
-RELDLL = $(RELDIR)/$(DLL_NAME)
 RELCFLAGS = $(CFLAGS) /Ox
  
 
@@ -33,13 +26,10 @@ all: clean prep release
 #
 # Debug rules
 #
-debug: clean prep $(DBGEXE) $(DBGDLL)
+debug: clean prep $(DBGEXE)
 
 $(DBGEXE): $(DBG_EXE_OBJS) $(DBGDIR)/$(EXE_RC)
 	$(CC) $(DBGCFLAGS) /Fe:$@ $^ /link user32.lib shell32.lib ole32.lib shlwapi.lib
-
-$(DBGDLL): $(DBG_DLL_OBJS)
-	$(CC) $(DBGCFLAGS) /Fe:$@ $^ /LD /link user32.lib /DEF:wm_dll.def
 
 $(DBGDIR)/%.obj: %.c
 	$(CC) $(DBGCFLAGS) /c /Fo:$@ $<
@@ -50,13 +40,10 @@ $(DBGDIR)/%.obj: %.rc
 #
 # Release rules
 #
-release: prep $(RELEXE) $(RELDLL)
+release: prep $(RELEXE)
 
 $(RELEXE): $(REL_EXE_OBJS) $(RELDIR)/$(EXE_RESS)
 	$(CC) $(RELCFLAGS) /Fe:$@ $^ /link user32.lib shell32.lib ole32.lib shlwapi.lib
-
-$(RELDLL): $(REL_DLL_OBJS)
-	$(CC) $(RELCFLAGS) /Fe:$@ $^ /LD /link user32.lib /DEF:wm_dll.def
 
 $(RELDIR)/%.obj: %.c
 	$(CC) $(RELCFLAGS) /c /Fo:$@ $<
